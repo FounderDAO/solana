@@ -29,27 +29,26 @@ else
 fi
 
 if [ -z $rpcURL ]; then
-   rpcPort=$(ps aux | grep solana-validator | grep -Po "\-\-rpc\-port\s+\K[0-9]+")
+   rpcPort=$(ps aux | grep agave-validator | grep -Po "\-\-rpc\-port\s+\K[0-9]+")
    if [ -z $rpcPort ]; then echo "nodemonitor,pubkey=$identityPubkey status=4 $now"; exit 1; fi
    rpcURL="http://127.0.0.1:$rpcPort"
 fi
 
-noVoting=$(ps aux | grep solana-validator | grep -c "\-\-no\-voting")
+noVoting=$(ps aux | grep agave-validator | grep -c "\-\-no\-voting")
 if [ "$noVoting" -eq 0 ]; then
    if [ -z $identityPubkey ]; then identityPubkey=$($cli address --url $rpcURL); fi
    if [ -z $identityPubkey ]; then echo "auto-detection failed, please configure the identityPubkey in the script if not done"; exit 1; fi
    if [ -z $voteAccount ]; then voteAccount=$($cli validators --url $rpcURL --output json-compact | jq -r 'first (.validators[] | select(.identityPubkey == '\"$identityPubkey\"')) | .voteAccountPubkey'); fi
    if [ -z $voteAccount ]; then echo "please configure the vote account in the script or wait for availability upon starting the node"; exit 1; fi
 fi
-identityPubkey="${(timeout 3 stdbuf -oL solana-validator --ledger "/root/solana/ledger" monitor 2>/dev/null | grep -m1 Identity | awk -F': ' '{print $2}')}"
 
 validatorBalance=$($cli balance $identityPubkey | grep -o '[0-9.]*')
 validatorVoteBalance=$($cli balance $voteAccount | grep -o '[0-9.]*')
-solanaPrice=155.58000000
+solanaPrice=$(curl -s 'GET' 'https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd' -H 'accept: application/json' | jq -r .solana.usd)
 openfiles=$(cat /proc/sys/fs/file-nr | awk '{ print $1 }')
 validatorCheck=$($cli validators --url $rpcURL)
 
-# if [ $(grep -c $voteAccount <<< $validatorCheck) == 0  ]; then echo "validator not found in set"; exit 1; fi
+if [ $(grep -c $voteAccount <<< $validatorCheck) == 0  ]; then echo "validator not found in set"; exit 1; fi
     blockProduction=$($cli block-production --url $rpcURL --output json-compact 2>&- | grep -v Note:)
     validatorBlockProduction=$(jq -r '.leaders[] | select(.identityPubkey == '\"$identityPubkey\"')' <<<$blockProduction)
     validators=$($cli validators --url $rpcURL --output json-compact 2>&-)

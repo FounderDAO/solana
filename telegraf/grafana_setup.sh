@@ -41,13 +41,13 @@ git clone https://github.com/stakeconomy/solanamonitoring/
 chmod +x ~/solanamonitoring/monitor.sh
 fi
 if [ ! -e /etc/default/locale ]; 
-then curl https://raw.githubusercontent.com/Hohlas/ubuntu/main/crypto/locale > /etc/default/locale; 
+then curl https://raw.githubusercontent.com/FounderDAO/ubuntu/main/crypto/locale > /etc/default/locale; 
 echo "Download locale file to /etc/default"; 
 fi # файл locale иногда отсутствует, из-за этого появляется ошибка
 
 
-curl https://raw.githubusercontent.com/Hohlas/solana/main/telegraf/telegraf.conf > /etc/telegraf/telegraf.conf
-curl https://raw.githubusercontent.com/Hohlas/solana/main/telegraf/monitor.sh > $HOME/solanamonitoring/monitor.sh
+curl https://raw.githubusercontent.com/FounderDAO/solana/main/telegraf/telegraf.conf > /etc/telegraf/telegraf.conf
+curl https://raw.githubusercontent.com/FounderDAO/solana/main/telegraf/monitor.sh > $HOME/solanamonitoring/monitor.sh
 
 tmp="\"$NAME\""
 sed -i "/^  hostname = /c\  hostname = $tmp" /etc/telegraf/telegraf.conf

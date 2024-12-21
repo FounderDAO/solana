@@ -1,5 +1,5 @@
 ```bash
-curl https://raw.githubusercontent.com/Hohlas/solana/main/telegraf/grafana_setup.sh > ~/grafana_setup.sh; chmod +x ~/grafana_setup.sh
+curl https://raw.githubusercontent.com/FounderDAO/solana/main/telegraf/grafana_setup.sh > ~/grafana_setup.sh; chmod +x ~/grafana_setup.sh
 source ~/grafana_setup.sh
 rm ~/grafana_setup.sh
 ```
