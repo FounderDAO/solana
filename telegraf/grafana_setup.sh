@@ -9,6 +9,8 @@ gpg --export --armor D8FF8E1F7DF8B07E | sudo gpg --no-default-keyring --keyring 
 sudo chown _apt /etc/apt/trusted.gpg.d/D8FF8E1F7DF8B07E.gpg
 
 # Загрузка и добавление ключа
+#sudo apt install gpg
+#curl -fsSL https://repos.influxdata.com/influxdata-archive_compat.key | gpg --dearmor | sudo tee  /etc/apt/trusted.gpg.d/influxdata-archive_compat.gpg > /dev/null
 curl -sL https://repos.influxdata.com/influxdb.key | gpg --dearmor | sudo tee /etc/apt/trusted.gpg.d/influxdb.gpg >/dev/null
 # права пользователю _apt:
 sudo chown _apt /etc/apt/trusted.gpg.d/influxdb.gpg

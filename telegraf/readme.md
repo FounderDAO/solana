@@ -21,8 +21,15 @@ nano /etc/telegraf/telegraf.conf  # add config
 sed -i "/^solanaPrice=/c\solanaPrice=$(curl -s 'https://api.margus.one/solana/price/'| jq -r .price)" /root/solanamonitoring/monitor.sh
 systemctl restart telegraf
 ```
+
 ### agava 2.1.5 version patch
 ```bash
 sed -i 's/credits\/slots/'\''credits\/max credits'\''/g' "$HOME/solanamonitoring/monitor.sh"
 systemctl restart telegraf
+```
+
+### Test config file
+```bash
+telegraf --config /etc/telegraf/telegraf.conf --test
+telegraf --config /etc/telegraf/telegraf.conf --debug
 ```
