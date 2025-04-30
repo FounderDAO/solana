@@ -32,4 +32,4 @@ systemctl restart telegraf
 ```bash
 telegraf --config /etc/telegraf/telegraf.conf --test
 telegraf --config /etc/telegraf/telegraf.conf --debug
-```
+```     

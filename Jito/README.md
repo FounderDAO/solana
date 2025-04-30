@@ -28,7 +28,7 @@ sudo apt-get install libssl-dev libudev-dev pkg-config zlib1g-dev llvm clang cma
 curl https://raw.githubusercontent.com/Hohlas/solana/main/Jito/solana.service > ~/solana/solana.service
 ```
 ```bash
-export TAG=v1.16.23-jito
+export TAG=v2.1.21-jito
 if [ -e $HOME/.local/share/solana/install/active_release ]; # remoove
 then rm $HOME/.local/share/solana/install/active_release;   # old link
 fi
@@ -39,7 +39,7 @@ ln -s $HOME/.local/share/solana/install/releases/$TAG $HOME/.local/share/solana/
 git clone https://github.com/jito-foundation/jito-solana.git --recurse-submodules
 cd jito-solana
 git checkout tags/$TAG
-git submodule update --init --recursive
+c
 CI_COMMIT=$(git rev-parse HEAD) scripts/cargo-install-all.sh --validator-only ~/.local/share/solana/install/releases/"$TAG"
 
 ```

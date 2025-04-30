@@ -1,0 +1,68 @@
+[Unit]
+Description=Solana mainnet node
+After=network.target syslog.target systuner.service
+Wants=systuner.service
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=1
+LimitNOFILE=2048000
+
+Environment="SOLANA_METRICS_CONFIG=host=https://metrics.solana.com:8086,db=mainnet-beta,u=mainnet-beta_write,p=password"
+ExecStart=/root/.local/share/solana/install/releases/2.1.11-mod/bin/agave-validator \
+--entrypoint entrypoint4.mainnet-beta.solana.com:8001 \
+--entrypoint entrypoint3.mainnet-beta.solana.com:8001 \
+--entrypoint entrypoint2.mainnet-beta.solana.com:8001 \
+--entrypoint entrypoint.mainnet-beta.solana.com:8001 \
+--entrypoint entrypoint5.mainnet-beta.solana.com:8001 \
+--known-validator 7Np41oeYqPefeNQEHSv1UDhYrehxin3NStELsSKCT4K2 \
+--known-validator GdnSyH3YtwcxFvQrVVJMm1JhTS4QVX7MFsX56uJLUfiZ \
+--known-validator DE1bawNcRJB9rVm3buyMVfr8mBEoyyu73NBovf2oXJsJ \
+--known-validator CakcnaRDHka2gXyfbEd2d3xsvkJkqsLw2akB3zsN1D2S \
+--expected-genesis-hash 5eykt4UsFv8P8NJdTREpY1vzqKqZKvdpKuc147dw2N9d \
+--wal-recovery-mode skip_any_corrupted_record \
+--identity /root/solana/identity.json \
+--vote-account /root/solana/.secrets/vote.json \
+--authorized-voter /root/solana/.secrets/validator.json \
+--tip-payment-program-pubkey T1pyyaTNZsKv2WcRAB8oVnk93mLJw2XzjtVYqCsaHqt \
+--tip-distribution-program-pubkey 4R3gSG8BpU4t19KYj8CfnbtRpnT8gtk4dvTHxVRwc2r7 \
+--merkle-root-upload-authority GZctHpWXmsZC1YHACTGGcHhYxjdRqQvTpYkb9LMvxDib \
+--commission-bps 0 \
+--relayer-url http://amsterdam.mainnet.relayer.jito.wtf:8100 \
+--block-engine-url https://amsterdam.mainnet.block-engine.jito.wtf \
+--shred-receiver-address 74.118.140.240:1002 \
+--account-index program-id \
+--account-index-include-key AddressLookupTab1e1111111111111111111111111 \
+--unified-scheduler-handler-threads 46 \
+--block-verification-method unified-scheduler \
+--block-production-method central-scheduler \
+--use-snapshot-archives-at-startup when-newest \
+--ledger /mnt/disk1/ledger \
+--accounts /mnt/ramdisk/accounts \
+--accounts-hash-cache-path /mnt/ramdisk/accounts_hash_cache \
+--accounts-index-path /mnt/ramdisk/accounts-index-path \
+--incremental-snapshot-archive-path /mnt/ramdisk/incremental_snapshots \
+--minimal-snapshot-download-speed 719430400 \
+--no-snapshot-fetch \
+--snapshot-compression lz4 \
+--snapshots /mnt/disk2/snapshots \
+--full-snapshot-interval-slots 25000 \
+--incremental-snapshot-interval-slots 500 \
+--accounts-hash-interval-slots 500 \
+--maximum-full-snapshots-to-retain 1 \
+--maximum-incremental-snapshots-to-retain 1 \
+--maximum-local-snapshot-age 3000 \
+--limit-ledger-size 50000000 \
+--dynamic-port-range 8000-10000 \
+--log /mnt/disk1/solana.log \
+--no-port-check \
+--full-rpc-api \
+--rpc-bind-address 127.0.0.1 \
+--rpc-port 8899 \
+--private-rpc
+ExecReload=/bin/kill -s HUP $MAINPID
+ExecStop=/bin/kill -s QUIT $MAINPID
+[Install]
+WantedBy=multi-user.target
