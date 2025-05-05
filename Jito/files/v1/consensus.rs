@@ -982,8 +982,11 @@ impl Tower {
         // slot to the current lockouts to pop any expired votes. If any of the
         // remaining voted slots are on a different fork from the checked slot,
         // it's still locked out.
-        let mut vote_state = self.vote_state.clone();
-        vote_state.process_next_vote_slot(slot);
+        let mut vote_state = self.vote_state.clone(); 
+        
+        // vote_state.process_next_vote_slot(slot, true);
+        // MOD COMMENT 
+        process_slot_vote_unchecked(&mut vote_state, slot);
         for vote in &vote_state.votes {
             if slot != vote.slot() && !ancestors.contains(&vote.slot()) {
                 return true;
@@ -1021,10 +1024,12 @@ impl Tower {
         // slot to the current lockouts to pop any expired votes. If any of the
         // remaining voted slots are on a different fork from the checked slot,
         // it's still locked out.
-        let mut vote_state = self.vote_state_old.clone();
+        let mut vote_state = self.vote_state.clone();
         // let mut vote_state = account.vote_state().clone();
 
         for slot in including {
+            // vote_state.process_next_vote_slot(slot, true);
+            // MOD COMMENT
             process_slot_vote_unchecked(&mut vote_state, slot);
             // NEW 
             // vote_state.process_next_vote_slot(slot);
