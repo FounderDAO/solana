@@ -209,10 +209,10 @@ echo "alias ct='solana catchup --our-localhost --follow --log'" >> $HOME/.bashrc
 source $HOME/.bashrc
 
 # UPDATE VERSION
-cd firedancer
+
 git stash
-git pull
-git checkout v0.411.20121
+cd firedancer && git pull
+git checkout v0.502.20212 && git branch 
 git submodule update
 make -j fdctl solana
 systemctl restart fd.service

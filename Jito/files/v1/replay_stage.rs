@@ -540,7 +540,6 @@ pub struct ReplayStage {
 }
 
 impl ReplayStage {
-    #[allow(clippy::too_many_arguments)]
     pub fn new(
         config: ReplayStageConfig,
         senders: ReplaySenders,
@@ -1201,7 +1200,8 @@ impl ReplayStage {
                             &drop_bank_sender,
                             wait_to_vote_slot,
                             pop_expired,
-                        ) {
+                        ) 
+                        {
                             error!("Unable to set root: {e}");
                             return;
                         }    
@@ -2651,112 +2651,111 @@ impl ReplayStage {
         let mut new_slots = vec![];
 
         for bank in banks.iter() {
-        if bank.is_empty() {
-            datapoint_info!("replay_stage-voted_empty_bank", ("slot", bank.slot(), i64));
-        }
-        new_slots.push(bank.slot());
-        trace!("handle votable bank {}", bank.slot());
-        let new_root = tower.record_bank_vote(bank, pop_expired);
-        
-        if let Some(new_root) = new_root {
-            // get the root bank before squash
-            let root_bank = bank_forks
-                .read()
-                .unwrap()
-                .get(new_root)
-                .expect("Root bank doesn't exist");
-            let mut rooted_banks = root_bank.parents();
-            let oldest_parent = rooted_banks.last().map(|last| last.parent_slot());
-            rooted_banks.push(root_bank.clone());
-            let rooted_slots: Vec<_> = rooted_banks.iter().map(|bank| bank.slot()).collect();
-            // The following differs from  rooted_slots by including the parent slot of the oldest parent bank.
-            let rooted_slots_with_parents = bank_notification_sender
-                .as_ref()
-                .is_some_and(|sender| sender.should_send_parents)
-                .then(|| {
-                    let mut new_chain = rooted_slots.clone();
-                    new_chain.push(oldest_parent.unwrap_or_else(|| bank.parent_slot()));
-                    new_chain
-                });
+            if bank.is_empty() {
+                datapoint_info!("replay_stage-voted_empty_bank", ("slot", bank.slot(), i64));
+            }
+            new_slots.push(bank.slot());
+            trace!("handle votable bank {}", bank.slot());
+            let new_root = tower.record_bank_vote(bank, pop_expired);
 
-            // Call leader schedule_cache.set_root() before blockstore.set_root() because
-            // bank_forks.root is consumed by repair_service to update gossip, so we don't want to
-            // get shreds for repair on gossip before we update leader schedule, otherwise they may
-            // get dropped.
-            leader_schedule_cache.set_root(rooted_banks.last().unwrap());
-            blockstore
-                .set_roots(rooted_slots.iter())
-                .expect("Ledger set roots failed");
-            let highest_super_majority_root = Some(
-                block_commitment_cache
+            if let Some(new_root) = new_root {
+                // get the root bank before squash
+                let root_bank = bank_forks
                     .read()
                     .unwrap()
-                    .highest_super_majority_root(),
-            );
-            Self::handle_new_root(
-                new_root,
-                bank_forks,
-                progress,
-                accounts_background_request_sender,
-                highest_super_majority_root,
-                heaviest_subtree_fork_choice,
-                duplicate_slots_tracker,
-                duplicate_confirmed_slots,
-                unfrozen_gossip_verified_vote_hashes,
-                has_new_vote_been_rooted,
-                vote_signatures,
-                epoch_slots_frozen_slots,
-                drop_bank_sender,
-            )?;
+                    .get(new_root)
+                    .expect("Root bank doesn't exist");
+                let mut rooted_banks = root_bank.parents();
+                let oldest_parent = rooted_banks.last().map(|last| last.parent_slot());
+                rooted_banks.push(root_bank.clone());
+                let rooted_slots: Vec<_> = rooted_banks.iter().map(|bank| bank.slot()).collect();
+                // The following differs from  rooted_slots by including the parent slot of the oldest parent bank.
+                let rooted_slots_with_parents = bank_notification_sender
+                    .as_ref()
+                    .is_some_and(|sender| sender.should_send_parents)
+                    .then(|| {
+                        let mut new_chain = rooted_slots.clone();
+                        new_chain.push(oldest_parent.unwrap_or_else(|| bank.parent_slot()));
+                        new_chain
+                    });
 
-            blockstore.slots_stats.mark_rooted(new_root);
+                // Call leader schedule_cache.set_root() before blockstore.set_root() because
+                // bank_forks.root is consumed by repair_service to update gossip, so we don't want to
+                // get shreds for repair on gossip before we update leader schedule, otherwise they may
+                // get dropped.
+                leader_schedule_cache.set_root(rooted_banks.last().unwrap());
+                blockstore
+                    .set_roots(rooted_slots.iter())
+                    .expect("Ledger set roots failed");
+                let highest_super_majority_root = Some(
+                    block_commitment_cache
+                        .read()
+                        .unwrap()
+                        .highest_super_majority_root(),
+                );
+                Self::handle_new_root(
+                    new_root,
+                    bank_forks,
+                    progress,
+                    accounts_background_request_sender,
+                    highest_super_majority_root,
+                    heaviest_subtree_fork_choice,
+                    duplicate_slots_tracker,
+                    duplicate_confirmed_slots,
+                    unfrozen_gossip_verified_vote_hashes,
+                    has_new_vote_been_rooted,
+                    vote_signatures,
+                    epoch_slots_frozen_slots,
+                    drop_bank_sender,
+                )?;
 
-            rpc_subscriptions.notify_roots(rooted_slots);
-            if let Some(sender) = bank_notification_sender {
-                sender
-                    .sender
-                    .send(BankNotification::NewRootBank(root_bank))
-                    .unwrap_or_else(|err| warn!("bank_notification_sender failed: {:?}", err));
+                blockstore.slots_stats.mark_rooted(new_root);
 
-                if let Some(new_chain) = rooted_slots_with_parents {
+                rpc_subscriptions.notify_roots(rooted_slots);
+                if let Some(sender) = bank_notification_sender {
                     sender
                         .sender
-                        .send(BankNotification::NewRootedChain(new_chain))
+                        .send(BankNotification::NewRootBank(root_bank))
                         .unwrap_or_else(|err| warn!("bank_notification_sender failed: {:?}", err));
+
+                    if let Some(new_chain) = rooted_slots_with_parents {
+                        sender
+                            .sender
+                            .send(BankNotification::NewRootedChain(new_chain))
+                            .unwrap_or_else(|err| warn!("bank_notification_sender failed: {:?}", err));
+                    }
                 }
+                info!("new root {}", new_root);
             }
-            info!("new root {}", new_root);
+
+            let mut update_commitment_cache_time = Measure::start("update_commitment_cache");
+            // Send (voted) bank along with the updated vote account state for this node, the vote
+            // state is always newer than the one in the bank by definition, because banks can't
+            // contain vote transactions which are voting on its own slot.
+            //
+            // It should be acceptable to aggressively use the vote for our own _local view_ of
+            // commitment aggregation, although it's not guaranteed that the new vote transaction is
+            // observed by other nodes at this point.
+            //
+            // The justification stems from the assumption of the sensible voting behavior from the
+            // consensus subsystem. That's because it means there would be a slashing possibility
+            // otherwise.
+            //
+            // This behavior isn't significant normally for mainnet-beta, because staked nodes aren't
+            // servicing RPC requests. However, this eliminates artificial 1-slot delay of the
+            // `finalized` confirmation if a node is materially staked and servicing RPC requests at
+            // the same time for development purposes.
+            let node_vote_state = (*vote_account_pubkey, tower.vote_state.clone());
+            Self::update_commitment_cache(
+                bank.clone(),
+                bank_forks.read().unwrap().root(),
+                progress.get_fork_stats(bank.slot()).unwrap().total_stake,
+                node_vote_state,
+                lockouts_sender,
+            );
+            update_commitment_cache_time.stop();
+            replay_timing.update_commitment_cache_us += update_commitment_cache_time.as_us();
         }
-    }
-
-        let mut update_commitment_cache_time = Measure::start("update_commitment_cache");
-        // Send (voted) bank along with the updated vote account state for this node, the vote
-        // state is always newer than the one in the bank by definition, because banks can't
-        // contain vote transactions which are voting on its own slot.
-        //
-        // It should be acceptable to aggressively use the vote for our own _local view_ of
-        // commitment aggregation, although it's not guaranteed that the new vote transaction is
-        // observed by other nodes at this point.
-        //
-        // The justification stems from the assumption of the sensible voting behavior from the
-        // consensus subsystem. That's because it means there would be a slashing possibility
-        // otherwise.
-        //
-        // This behavior isn't significant normally for mainnet-beta, because staked nodes aren't
-        // servicing RPC requests. However, this eliminates artificial 1-slot delay of the
-        // `finalized` confirmation if a node is materially staked and servicing RPC requests at
-        // the same time for development purposes.
-        let node_vote_state = (*vote_account_pubkey, tower.vote_state.clone());
-        Self::update_commitment_cache(
-            bank.clone(),
-            bank_forks.read().unwrap().root(),
-            progress.get_fork_stats(bank.slot()).unwrap().total_stake,
-            node_vote_state,
-            lockouts_sender,
-        );
-        update_commitment_cache_time.stop();
-        replay_timing.update_commitment_cache_us += update_commitment_cache_time.as_us();
-
         Self::push_vote(
             banks.last().unwrap(),
             vote_account_pubkey,
@@ -2944,13 +2943,12 @@ impl ReplayStage {
             // In this case we have not voted since restart, our setup is unclear.
             // We have a vote from our previous restart that is eligble for refresh, we must refresh.
             BlockhashStatus::Uninitialized => None,
-            // Refresh if the blockhash is expired
             BlockhashStatus::Blockhash(blockhash) => Some(blockhash),
         };
 
         if last_vote_tx_blockhash.is_some()
                     && heaviest_bank_on_same_fork
-                .is_hash_valid_for_age(&last_vote_tx_blockhash.unwrap(), REFRESH_VOTE_BLOCKHEIGHT)
+                        .is_hash_valid_for_age(&last_vote_tx_blockhash.unwrap(), REFRESH_VOTE_BLOCKHEIGHT)
         {
             // Check the blockhash queue to see if enough blocks have been built on our last voted fork
             return false;
@@ -2967,8 +2965,6 @@ impl ReplayStage {
             // than MAX_VOTE_REFRESH_INTERVAL_MILLIS
             return false;
         }
-
-        // All criteria are met, refresh the last vote using the blockhash of `heaviest_bank_on_same_fork`
         Self::refresh_last_vote(
             tower,
             heaviest_bank_on_same_fork,
@@ -3591,7 +3587,7 @@ impl ReplayStage {
                         );
                     }
                 }
-                
+
                 if let Some(ref block_metadata_notifier) = block_metadata_notifier {
                     let parent_blockhash = bank
                         .parent()
@@ -4271,11 +4267,10 @@ impl ReplayStage {
                     voted_stakes.get(slot)
                 );
             }
-            if bank.is_frozen()
-            && tower.is_slot_mostly_confirmed(*slot, voted_stakes, total_stake)
-            {
-                mostly_confirmed_forks.push(*slot);
-            }
+            if bank.is_frozen() && tower.is_slot_mostly_confirmed(*slot, voted_stakes, total_stake)
+                {
+                    mostly_confirmed_forks.push(*slot);
+                }
         }
         (duplicate_confirmed_forks, mostly_confirmed_forks)
     }
@@ -4456,8 +4451,6 @@ impl ReplayStage {
         }
         Bank::new_from_parent_with_options(parent, leader, slot, new_bank_options)
     }
-
-
 
     fn log_heaviest_fork_failures(
         heaviest_fork_failures: &Vec<HeaviestForkFailures>,
@@ -7961,7 +7954,7 @@ pub(crate) mod tests {
                 &mut last_vote_refresh_time,
                 &voting_sender,
                 None,
-            ));
+            );
 
             // No new votes have been submitted to gossip
             let votes = cluster_info.get_votes(&mut cursor);
@@ -8013,6 +8006,7 @@ pub(crate) mod tests {
             vote_info,
             Arc::new(connection_cache),
         );
+
         let votes = cluster_info.get_votes(&mut cursor);
         assert_eq!(votes.len(), 1);
         let vote_tx = &votes[0];
@@ -8049,7 +8043,7 @@ pub(crate) mod tests {
             &mut last_vote_refresh_time,
             &voting_sender,
             None,
-        ));
+        );
 
         // No new votes have been submitted to gossip
         let votes = cluster_info.get_votes(&mut cursor);
@@ -8180,10 +8174,10 @@ pub(crate) mod tests {
             for i in 0..expired_bank_child_slot {
                 let slot = expired_bank_child.slot() + i + 1;
                 parent_bank = new_bank_from_parent_with_bank_forks(
-                bank_forks.as_ref(),
-                parent_bank,
-                &Pubkey::default(),
-                slot,
+            bank_forks.as_ref(),
+            parent_bank,
+            &Pubkey::default(),
+            slot,
         );
                 parent_bank.fill_bank_with_ticks_for_tests();
                 parent_bank.freeze();

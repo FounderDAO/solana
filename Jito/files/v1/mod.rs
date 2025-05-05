@@ -737,7 +737,7 @@ pub fn process_vote_unfiltered(
     check_slots_are_valid(vote_state, vote_slots, &vote.hash, slot_hashes)?;
     vote_slots
         .iter()
-        .for_each(|s| vote_state.process_next_vote_slot(*s, epoch, current_slot, pop_expired,));
+        .for_each(|s| vote_state.process_next_vote_slot(*s, epoch, current_slot, pop_expired));
     Ok(())
 }
 
@@ -774,11 +774,7 @@ pub fn process_vote(
 }
 
 /// "unchecked" functions used by tests and Tower
-pub fn process_vote_unchecked(
-    vote_state: &mut VoteState, 
-    vote: Vote,
-    pop_expired: bool,
-) -> Result<(), VoteError> {
+pub fn process_vote_unchecked(vote_state: &mut VoteState, vote: Vote, pop_expired: bool) -> Result<(), VoteError> {
     if vote.slots.is_empty() {
         return Err(VoteError::EmptySlots);
     }
@@ -1063,15 +1059,7 @@ pub fn process_vote_with_account<S: std::hash::BuildHasher>(
 ) -> Result<(), InstructionError> {
     let mut vote_state = verify_and_get_vote_state(vote_account, clock, signers)?;
 
-    
-    process_vote(
-        &mut vote_state,
-        vote,
-        slot_hashes,
-        clock.epoch,
-        clock.slot,
-        true,
-    )?;
+    process_vote(&mut vote_state, vote, slot_hashes, clock.epoch, clock.slot, true)?;
     if let Some(timestamp) = vote.timestamp {
         vote.slots
             .iter()
@@ -1305,7 +1293,7 @@ mod tests {
             134, 135,
         ]
         .into_iter()
-        .for_each(|v| vote_state.process_next_vote_slot(v, 4, 0));
+        .for_each(|v| vote_state.process_next_vote_slot(v, 4, 0, false));
 
         let version1_14_11_serialized = bincode::serialize(&VoteStateVersions::V1_14_11(Box::new(
             VoteState1_14_11::from(vote_state.clone()),
@@ -1786,11 +1774,11 @@ mod tests {
         let slot_hashes: Vec<_> = vote.slots.iter().rev().map(|x| (*x, vote.hash)).collect();
 
         assert_eq!(
-            process_vote(&mut vote_state_a, &vote, &slot_hashes, 0, 0),
+            process_vote(&mut vote_state_a, &vote, &slot_hashes, 0, 0, true),
             Ok(())
         );
         assert_eq!(
-            process_vote(&mut vote_state_b, &vote, &slot_hashes, 0, 0),
+            process_vote(&mut vote_state_b, &vote, &slot_hashes, 0, 0, true),
             Ok(())
         );
         assert_eq!(recent_votes(&vote_state_a), recent_votes(&vote_state_b));
@@ -1803,12 +1791,12 @@ mod tests {
         let vote = Vote::new(vec![0], Hash::default());
         let slot_hashes: Vec<_> = vec![(0, vote.hash)];
         assert_eq!(
-            process_vote(&mut vote_state, &vote, &slot_hashes, 0, 0),
+            process_vote(&mut vote_state, &vote, &slot_hashes, 0, 0, true),
             Ok(())
         );
         let recent = recent_votes(&vote_state);
         assert_eq!(
-            process_vote(&mut vote_state, &vote, &slot_hashes, 0, 0, true,),
+            process_vote(&mut vote_state, &vote, &slot_hashes, 0, 0, true),
             Err(VoteError::VoteTooOld)
         );
         assert_eq!(recent, recent_votes(&vote_state));
@@ -3100,7 +3088,7 @@ mod tests {
         // error with `VotesTooOldAllFiltered`
         let slot_hashes = vec![(3, Hash::new_unique()), (2, Hash::new_unique())];
         assert_eq!(
-            process_vote(&mut vote_state, &vote, &slot_hashes, 0, 0, true, true),
+            process_vote(&mut vote_state, &vote, &slot_hashes, 0, 0, true),
             Err(VoteError::VotesTooOldAllFiltered)
         );
 
@@ -3114,7 +3102,7 @@ mod tests {
             .1;
 
         let vote = Vote::new(vec![old_vote_slot, vote_slot], vote_slot_hash);
-        process_vote(&mut vote_state, &vote, &slot_hashes, 0, 0, true, true).unwrap();
+        process_vote(&mut vote_state, &vote, &slot_hashes, 0, 0, true).unwrap();
         assert_eq!(
             vote_state
                 .votes
@@ -3143,15 +3131,7 @@ mod tests {
                 .unwrap()
                 .1;
             let vote = Vote::new(vote_slots, vote_hash);
-            process_vote_unfiltered(
-                &mut vote_state, 
-                &vote.slots, 
-                &vote, 
-                slot_hashes, 
-                0, 
-                0, 
-                true,
-            )
+            process_vote_unfiltered(&mut vote_state, &vote.slots, &vote, slot_hashes, 0, 0, true)
                 .unwrap();
         }
 

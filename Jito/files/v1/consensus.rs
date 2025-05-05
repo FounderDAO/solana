@@ -1,5 +1,3 @@
-use crate::replay_stage::DUPLICATE_THRESHOLD;
-
 pub mod fork_choice;
 pub mod heaviest_subtree_fork_choice;
 pub(crate) mod latest_validator_votes_for_frozen_banks;
@@ -199,44 +197,8 @@ impl TowerVersions {
 
     pub fn convert_to_current(self) -> Tower {
         match self {
-            TowerVersions::V1_7_14(tower) => {
-                let box_last_vote = VoteTransaction::from(tower.last_vote.clone());
-
-                Tower {
-                    node_pubkey: tower.node_pubkey,
-                    threshold_depth: tower.threshold_depth,
-                    threshold_size: tower.threshold_size,
-                    vote_state: VoteStateVersions::V1_14_11(Box::new(tower.vote_state))
-                        .convert_to_current(),
-                    last_vote: box_last_vote,
-                    last_vote_tx_blockhash: tower.last_vote_tx_blockhash,
-                    last_timestamp: tower.last_timestamp,
-                    stray_restored_slot: tower.stray_restored_slot,
-                    last_switch_threshold_check: tower.last_switch_threshold_check,
-                    mostly_confirmed_threshold: None,
-                    threshold_ahead_count: None,
-                    after_skip_threshold: None,
-                    threshold_escape_count: None,
-                    last_config_check_seconds: 0,
-                }
-            }
-            TowerVersions::V1_14_11(tower) => Tower {
-                node_pubkey: tower.node_pubkey,
-                threshold_depth: tower.threshold_depth,
-                threshold_size: tower.threshold_size,
-                vote_state: VoteStateVersions::V1_14_11(Box::new(tower.vote_state))
-                    .convert_to_current(),
-                last_vote: tower.last_vote,
-                last_vote_tx_blockhash: tower.last_vote_tx_blockhash,
-                last_timestamp: tower.last_timestamp,
-                stray_restored_slot: tower.stray_restored_slot,
-                last_switch_threshold_check: tower.last_switch_threshold_check,
-                mostly_confirmed_threshold: None,
-                threshold_ahead_count: None,
-                after_skip_threshold: None,
-                threshold_escape_count: None,
-                last_config_check_seconds: 0,
-            },
+            TowerVersions::V1_7_14(tower) => tower.into(),
+            TowerVersions::V1_14_11(tower) => tower.into(),
             TowerVersions::Current(tower) => tower,
         }
     }
@@ -255,21 +217,15 @@ pub(crate) enum BlockhashStatus {
     /// Successfully generated vote tx with blockhash
     Blockhash(Hash),
 }
-// COMMENT
-// #[cfg_attr(
-//     feature = "frozen-abi",
-//     derive(AbiExample),
-//     frozen_abi(digest = "9ziHa1vA7WG5RCvXiE3g1f2qjSTNa47FB7e2czo7en7a")
-// )]
 
-#[derive(Clone, Serialize, Deserialize, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Tower {
     pub node_pubkey: Pubkey,
     pub(crate) threshold_depth: usize,
     threshold_size: f64,
     pub(crate) vote_state: TowerVoteState,
     last_vote: VoteTransaction,
-    #[serde(skip)]
+    // #[serde(skip)]
     // The blockhash used in the last vote transaction, may or may not equal the
     // blockhash of the voted block itself, depending if the vote slot was refreshed.
     // For instance, a vote for slot 5, may be refreshed/resubmitted for inclusion in
@@ -277,7 +233,7 @@ pub struct Tower {
     // For non voting validators this is NonVoting
     last_vote_tx_blockhash: BlockhashStatus,
     last_timestamp: BlockTimestamp,
-    #[serde(skip)]
+    // #[serde(skip)]
     // Restored last voted slot which cannot be found in SlotHistory at replayed root
     // (This is a special field for slashing-free validator restart with edge cases).
     // This could be emptied after some time; but left intact indefinitely for easier
@@ -285,17 +241,17 @@ pub struct Tower {
     // Further, stray slot can be stale or not. `Stale` here means whether given
     // bank_forks (=~ ledger) lacks the slot or not.
     stray_restored_slot: Option<Slot>,
-    #[serde(skip)]
+    // #[serde(skip)]
     pub last_switch_threshold_check: Option<(Slot, SwitchForkDecision)>,
-    #[serde(skip)]
+    // #[serde(skip)]
     mostly_confirmed_threshold: Option<f64>,
-    #[serde(skip)]
+    // #[serde(skip)]
     threshold_ahead_count: Option<u8>,
-    #[serde(skip)]
+    // #[serde(skip)]
     after_skip_threshold: Option<u8>,
-    #[serde(skip)]
+    // #[serde(skip)]
     threshold_escape_count: Option<u8>,
-    #[serde(skip)]
+    // #[serde(skip)]
     last_config_check_seconds: u64,
 }
 
@@ -385,6 +341,7 @@ impl From<Tower1_7_14> for Tower {
             last_config_check_seconds: 0,
         }
     }
+    
 }
 
 impl Tower {
@@ -909,19 +866,8 @@ impl Tower {
         trace!("{} record_vote for {}", self.node_pubkey, vote_slot);
         let old_root = self.root();
 
-        let vote = Vote::new(vec![vote_slot], vote_hash);
-        let result = process_vote_unchecked(&mut self.vote_state, vote, pop_expired);
-        if result.is_err() {
-            panic!(
-                "Error while recording vote {} {} in local tower {:?}",
-                    vote_slot,
-                    vote_hash,
-                    VoteError::VoteTooOld
-            );
-        }
-        // TODO: remove this line if error to build
-         self.vote_state.process_next_vote_slot(vote_slot);
-        self.update_last_vote_from_vote_state(vote_hash, enable_tower_sync_ix, block_id, pop_expired);
+        self.vote_state.process_next_vote_slot(vote_slot, pop_expired);
+        self.update_last_vote_from_vote_state(vote_hash, enable_tower_sync_ix, block_id);
 
         let new_root = self.root();
 
@@ -1068,15 +1014,20 @@ impl Tower {
         if !self.is_recent(slot) {
             return true;
         }
-
+        // solana_vote_program::vote_state::{
+        //     Vote, VoteState, VoteStateVersions, MAX_LOCKOUT_HISTORY,
+        // },
         // Check if a slot is locked out by simulating adding a vote for that
         // slot to the current lockouts to pop any expired votes. If any of the
         // remaining voted slots are on a different fork from the checked slot,
         // it's still locked out.
-        let mut vote_state = self.vote_state.clone();
+        let mut vote_state = self.vote_state_old.clone();
+        // let mut vote_state = account.vote_state().clone();
 
         for slot in including {
-            process_slot_vote_unchecked(&mut vote_state, *slot);
+            process_slot_vote_unchecked(&mut vote_state, slot);
+            // NEW 
+            // vote_state.process_next_vote_slot(slot);
         }
 
         process_slot_vote_unchecked(&mut vote_state, slot);
@@ -1102,7 +1053,7 @@ impl Tower {
 
     pub fn pop_votes_locked_out_at(&self, new_votes: &mut Vec<Slot>, slot: Slot) {
         let mut vote_state = self.vote_state.clone();
-
+        
         for i in 0..new_votes.len() {
             process_slot_vote_unchecked(&mut vote_state, new_votes[i]);
             if let Some(last_lockout) = vote_state.last_lockout() {
@@ -1975,25 +1926,6 @@ pub enum TowerError {
 
     #[error("The tower is useless because of new hard fork: {0}")]
     HardFork(Slot),
-}
-
-// Tower1_14_11 is the persisted data format for the Tower, decoupling it from VoteState::Current
-// From Tower1_14_11 to Tower is not implemented because it is not an expected conversion
-#[allow(clippy::from_over_into)]
-impl Into<Tower1_14_11> for Tower {
-    fn into(self) -> Tower1_14_11 {
-        Tower1_14_11 {
-            node_pubkey: self.node_pubkey,
-            threshold_depth: self.threshold_depth,
-            threshold_size: self.threshold_size,
-            vote_state: VoteState1_14_11::from(self.vote_state.clone()),
-            last_vote: self.last_vote.clone(),
-            last_vote_tx_blockhash: self.last_vote_tx_blockhash,
-            last_timestamp: self.last_timestamp,
-            stray_restored_slot: self.stray_restored_slot,
-            last_switch_threshold_check: self.last_switch_threshold_check,
-        }
-    }
 }
 
 impl TowerError {
