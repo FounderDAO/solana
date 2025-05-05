@@ -7864,7 +7864,7 @@ pub(crate) mod tests {
                 0,
             ),
         );
-        tower.record_bank_vote(&bank0);
+        tower.record_bank_vote(&bank0, true);
         ReplayStage::push_vote(
             &bank0,
             &my_vote_pubkey,
@@ -7954,7 +7954,7 @@ pub(crate) mod tests {
                 &mut last_vote_refresh_time,
                 &voting_sender,
                 None,
-            );
+            ));
 
             // No new votes have been submitted to gossip
             let votes = cluster_info.get_votes(&mut cursor);
@@ -8043,7 +8043,7 @@ pub(crate) mod tests {
             &mut last_vote_refresh_time,
             &voting_sender,
             None,
-        );
+        ));
 
         // No new votes have been submitted to gossip
         let votes = cluster_info.get_votes(&mut cursor);
