@@ -1,13 +1,19 @@
 type Stake = u64;
 pub const SWITCH_FORK_THRESHOLD: f64 = 0.38;
 use {
-    super::VotedStakes, solana_sdk::clock::Slot, solana_stake_program::stake_state::Stake, solana_vote_program::vote_state::{Lockout, VoteState, VoteState1_14_11, MAX_LOCKOUT_HISTORY}, std::collections::VecDeque
+    solana_sdk::clock::Slot,
+    solana_vote_program::vote_state::{Lockout, VoteState, VoteState1_14_11, MAX_LOCKOUT_HISTORY},
+    std::collections::VecDeque,
 };
+use std::collections::HashMap;
 
-#[derive(Clone, Debug, PartialEq, Default)]
+type VotedStakes = HashMap<Slot, Stake>;
+
+#[derive(Default, Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct TowerVoteState {
     pub votes: VecDeque<Lockout>,
     pub root_slot: Option<Slot>,
+    #[serde(skip)]
     pub mostly_confirmed_threshold: Option<f64>,
 }
 
@@ -314,6 +320,7 @@ mod tests {
     #[test]
     fn test_vote_state_roots() {
         let mut vote_state = TowerVoteState {
+            mostly_confirmed_threshold: None,
             votes: VecDeque::new(),
             root_slot: Some(5), // Start with existing root
             ..
