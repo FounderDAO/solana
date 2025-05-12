@@ -1,0 +1,3 @@
+solana withdraw-from-vote-account 3zxkHtntSzfW2rukRFqhN9SDPzqicvF6WwN6yDwdSvxQ C17WLnQTPjqXgmnpu2F1WfbeXdSbzufvnMHuS6XHjsAZ  ALL --authorized-withdrawer withdraw.json
+
+solana withdraw-from-vote-account CTJQeJWYyREH1Ueby35FprjnqtnUzQQyvujM8rVWg6UR EXjnkKs1jTQ7deYasChs71VgQZseMhvbefBuqtEGVVdZ ALL --authorized-withdrawer withdrawer-keypair.json
